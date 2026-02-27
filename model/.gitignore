@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Datasets and large items (Important: Do not push the 490MB Dataset)
+*.csv
+PS_20174392719_1491204439457_log.csv
+
+# Ignore logs and intermediate plots
+*.log
+*.png
+*.jpeg
+
+# Environments
+.env
+
+# Testing
+.pytest_cache/

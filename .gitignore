@@ -1,0 +1,4 @@
+# Global Gitignore for root project
+.venv/
+node_modules/
+.DS_Store
