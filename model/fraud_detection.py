@@ -18,6 +18,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
+import shutil
 
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import (
@@ -135,18 +136,13 @@ def prepare_data(df: pd.DataFrame, target: str = "isFraud"):
 
 def build_random_forest() -> RandomForestClassifier:
     """
-    Random Forest — ensemble of 100 decision trees.
-
-    Strengths for fraud detection:
-    • Handles non-linear feature interactions naturally.
-    • Robust to outliers (common in financial data).
-    • Provides interpretable feature importances.
-    • Parallelised across all CPU cores (n_jobs=-1).
+    Random Forest — ensemble of decision trees.
+    We increased the number of estimators and allowed deeper trees to capture finer patterns.
     """
     return RandomForestClassifier(
-        n_estimators=100,
+        n_estimators=150,           # Increased from 100
         max_depth=None,
-        min_samples_split=5,
+        min_samples_split=4,        # Decreased to allow finer splits
         class_weight="balanced",   # extra guard against residual imbalance
         random_state=42,
         n_jobs=-1,
@@ -160,18 +156,13 @@ def build_random_forest() -> RandomForestClassifier:
 def build_gradient_boosting() -> HistGradientBoostingClassifier:
     """
     Histogram Gradient Boosting (sklearn's fast variant of XGBoost/LightGBM).
-
-    Strengths for fraud detection:
-    • Native handling of missing values — no imputation needed.
-    • Buckets continuous features into histograms → very fast on large data.
-    • Learns iteratively — each tree corrects errors of the previous ones.
-    • Often outperforms Random Forest on tabular datasets.
+    We tweaked the learning rate and max iterations for better performance.
     """
     return HistGradientBoostingClassifier(
-        max_iter=200,              # number of boosting rounds (trees)
-        learning_rate=0.05,        # shrinkage — smaller = more robust, slower
-        max_depth=6,               # limits individual tree depth
-        min_samples_leaf=20,       # prevents overfitting on small leaves
+        max_iter=300,              # Increased from 200
+        learning_rate=0.08,        # Slightly faster learning rate
+        max_depth=8,               # Deeper trees
+        min_samples_leaf=15,       # Allow slightly more granular leaf nodes
         random_state=42,
     )
 
@@ -183,18 +174,6 @@ def build_gradient_boosting() -> HistGradientBoostingClassifier:
 def evaluate_model(model, X_test, y_test, feature_cols: list, model_name: str) -> dict:
     """
     Print a full classification report and return key metrics for comparison.
-
-    Metrics
-    -------
-    • AUPRC       — Area under Precision-Recall Curve (best for imbalance).
-    • Macro F1    — harmonic mean equally weighted across both classes.
-    • Fraud Prec. — how many flagged transactions are actually fraud.
-    • Fraud Rec.  — how many actual frauds were caught (recall).
-
-    Why NOT accuracy?
-    -----------------
-    With ~0.3 % fraud rate, "always predict legit" gives >99 % accuracy yet
-    catches zero fraud. AUPRC and Fraud Recall expose this clearly.
     """
     y_pred  = model.predict(X_test)
     y_proba = model.predict_proba(X_test)[:, 1]
@@ -366,6 +345,15 @@ def main():
     print("\n  Saving models …")
     save_model(rf,  "model_random_forest.joblib")
     save_model(hgb, "model_gradient_boosting.joblib")
+    
+    # ── Step 7: Export best to API pipeline ────────────────────
+    print("\n  Updating API pipeline with best model (highest AUPRC) …")
+    if rf_metrics["auprc"] >= hgb_metrics["auprc"]:
+        shutil.copy("model_random_forest.joblib", "fraud_detection_pipeline.joblib")
+        print("    → Random Forest selected for production API!")
+    else:
+        shutil.copy("model_gradient_boosting.joblib", "fraud_detection_pipeline.joblib")
+        print("    → Histogram Gradient Boosting selected for production API!")
 
     print("\n" + "═" * 62)
     print("  ✅ Done. Both models trained, evaluated, and saved.")
