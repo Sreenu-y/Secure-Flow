@@ -1,0 +1,5 @@
+* feature/training-pipeline
+  main
+  remotes/origin/HEAD -> origin/main
+  remotes/origin/feature/training-pipeline
+  remotes/origin/main
