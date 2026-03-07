@@ -236,21 +236,31 @@ export default function BillingPage() {
     const sessionId = params.get("session_id");
 
     const fetchInfo = () => {
-      getBillingInfo().then((info) => {
-        setBillingInfo(info);
-        setIsLoading(false);
-      });
+      getBillingInfo()
+        .then((info) => {
+          setBillingInfo(info);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch billing info:", err);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     };
 
     if (sessionId) {
-      verifyCheckoutSession(sessionId).then(() => {
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname,
-        );
-        fetchInfo();
-      });
+      verifyCheckoutSession(sessionId)
+        .catch((err) => {
+          console.error("Failed to verify checkout session:", err);
+        })
+        .finally(() => {
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
+          fetchInfo();
+        });
     } else {
       fetchInfo();
     }
