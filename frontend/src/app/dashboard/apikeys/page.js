@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -120,6 +121,7 @@ export default function ApiKeysPage() {
         setIsTestKey(false);
       } else {
         console.error("Failed to create key");
+        toast.error("Failed to create API key.");
       }
     } catch (err) {
       console.error(err);
@@ -143,17 +145,21 @@ export default function ApiKeysPage() {
 
       if (res.ok) {
         setApiKeys((prev) => prev.filter((k) => k.id !== id));
+        toast.success("API key revoked.");
       } else {
         console.error("Failed to revoke key");
+        toast.error("Failed to revoke key.");
       }
     } catch (err) {
       console.error(err);
+      toast.error("Failed to revoke key.");
     }
   };
 
   const handleCopy = (id, keyText) => {
     navigator.clipboard.writeText(keyText);
     setCopiedId(id);
+    toast.success("API key copied to clipboard");
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -485,8 +491,11 @@ export default function ApiKeysPage() {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-[300px] items-center justify-center text-gray-500 animate-pulse">
-                Parsing real-time usage data...
+              <div className="flex flex-col h-[300px] items-center justify-center gap-3 text-gray-500">
+                <p className="text-sm">No API calls recorded yet.</p>
+                <p className="text-xs text-gray-600">
+                  Usage will appear here once you make your first API call.
+                </p>
               </div>
             )}
           </div>

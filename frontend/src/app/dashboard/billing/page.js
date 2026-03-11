@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import {
   Card,
   CardContent,
@@ -18,6 +18,7 @@ import {
   Activity,
   Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import {
   createCheckoutSession,
@@ -25,6 +26,7 @@ import {
   getBillingInfo,
   verifyCheckoutSession,
 } from "./actions";
+
 const SERVER_PLANS = {
   free: {
     name: "Free",
@@ -105,98 +107,9 @@ const BASE_PLANS = [
   },
 ];
 
-const PLANS = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "/ month",
-    icon: Activity,
-    color: "text-gray-400",
-    border: "border-gray-700",
-    badge: null,
-    features: [
-      "5,000 API calls / month",
-      "10,000 transactions scanned",
-      "Basic fraud detection",
-      "Email alerts",
-      "Community support",
-    ],
-    cta: "Current Plan",
-    current: true,
-  },
-  {
-    name: "Pro",
-    price: "$49",
-    period: "/ month",
-    icon: Zap,
-    color: "text-blue-400",
-    border: "border-blue-500/40",
-    badge: "Most Popular",
-    features: [
-      "100,000 API calls / month",
-      "500,000 transactions scanned",
-      "Advanced ML models",
-      "Real-time webhooks",
-      "Priority support",
-      "Custom alert rules",
-      "Analytics dashboard",
-    ],
-    cta: "Upgrade to Pro",
-    current: false,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    period: "",
-    icon: Building2,
-    color: "text-purple-400",
-    border: "border-purple-500/40",
-    badge: "Best Value",
-    features: [
-      "Unlimited API calls",
-      "Unlimited transactions",
-      "Custom ML model training",
-      "Dedicated infrastructure",
-      "SLA guarantee (99.99%)",
-      "24/7 dedicated support",
-      "On-premise deployment",
-      "GDPR / SOC 2 compliance",
-    ],
-    cta: "Contact Sales",
-    current: false,
-  },
-];
-
-const USAGE_STATS = [
-  { label: "API Calls", used: 3241, total: 5000, color: "#3b82f6" },
-  { label: "Transactions Scanned", used: 8120, total: 10000, color: "#a855f7" },
-  { label: "Alerts Triggered", used: 47, total: 100, color: "#f59e0b" },
-];
-
-const BILLING_HISTORY = [
-  {
-    date: "Feb 1, 2026",
-    description: "Free Plan — Monthly",
-    amount: "$0.00",
-    status: "Paid",
-  },
-  {
-    date: "Jan 1, 2026",
-    description: "Free Plan — Monthly",
-    amount: "$0.00",
-    status: "Paid",
-  },
-  {
-    date: "Dec 1, 2025",
-    description: "Free Plan — Monthly",
-    amount: "$0.00",
-    status: "Paid",
-  },
-];
-
-function UsageMeter({ label, used, total, color }) {
-  const pct = Math.min((used / total) * 100, 100);
-  const danger = pct > 80;
+function UsageMeter({ label, used, total, color, unlimited }) {
+  const pct = unlimited ? 0 : Math.min((used / total) * 100, 100);
+  const danger = !unlimited && pct > 80;
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-sm">
@@ -204,28 +117,56 @@ function UsageMeter({ label, used, total, color }) {
         <span
           className={`font-mono font-semibold ${danger ? "text-red-400" : "text-gray-300"}`}
         >
-          {used.toLocaleString()} / {total.toLocaleString()}
+          {unlimited
+            ? `${used.toLocaleString()} / ∞`
+            : `${used.toLocaleString()} / ${total.toLocaleString()}`}
         </span>
       </div>
       <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-700"
-          style={{
-            width: `${pct}%`,
-            background: danger ? "#ef4444" : color,
-          }}
-        />
+        {unlimited ? (
+          <div
+            className="h-full rounded-full bg-linear-to-r from-purple-500 to-blue-500"
+            style={{ width: "100%" }}
+          />
+        ) : (
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${pct}%`,
+              background: danger ? "#ef4444" : color,
+            }}
+          />
+        )}
       </div>
       <p className="text-xs text-gray-600">
-        {pct.toFixed(1)}% used this billing cycle
+        {unlimited
+          ? "Unlimited — no cap on this plan"
+          : `${pct.toFixed(1)}% used this billing cycle`}
       </p>
     </div>
   );
 }
 
+function formatBillingPeriod(billingInfo) {
+  if (billingInfo?.subscriptionExpiryDate) {
+    const expiry = new Date(billingInfo.subscriptionExpiryDate);
+    const now = new Date();
+    const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+    const start = new Date(expiry);
+    start.setMonth(start.getMonth() - 1);
+    return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${expiry.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · ${daysLeft > 0 ? `Resets in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}` : "Expired"}`;
+  }
+  // Free plan fallback — show current calendar month
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const daysLeft = end.getDate() - now.getDate();
+  return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · Resets in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`;
+}
+
 export default function BillingPage() {
   const [annual, setAnnual] = useState(false);
-  const [isPending, startTransition] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [loadingPlan, setLoadingPlan] = useState(null);
 
   const [billingInfo, setBillingInfo] = useState(null);
@@ -242,6 +183,7 @@ export default function BillingPage() {
         })
         .catch((err) => {
           console.error("Failed to fetch billing info:", err);
+          toast.error("Failed to load billing info");
         })
         .finally(() => {
           setIsLoading(false);
@@ -250,6 +192,9 @@ export default function BillingPage() {
 
     if (sessionId) {
       verifyCheckoutSession(sessionId)
+        .then((success) => {
+          if (success) toast.success("Subscription activated!");
+        })
         .catch((err) => {
           console.error("Failed to verify checkout session:", err);
         })
@@ -271,35 +216,39 @@ export default function BillingPage() {
       handleBillingPortal();
       return;
     }
+    if (planId === "free") return;
     setLoadingPlan(planId);
-    startTransition(true);
 
     const planType =
       planId.toLowerCase() === "enterprise" ? "custom" : planId.toLowerCase();
 
-    createCheckoutSession(planType)
-      .then(({ url }) => {
-        if (url) window.location.href = url;
-      })
-      .catch((err) => {
-        console.error("Failed to start checkout:", err);
-      })
-      .finally(() => {
-        setLoadingPlan(null);
-        startTransition(false);
-      });
+    startTransition(() => {
+      createCheckoutSession(planType, annual)
+        .then(({ url }) => {
+          if (url) window.location.href = url;
+        })
+        .catch((err) => {
+          console.error("Failed to start checkout:", err);
+          toast.error("Failed to start checkout. Please try again.");
+        })
+        .finally(() => {
+          setLoadingPlan(null);
+        });
+    });
   };
 
   const handleBillingPortal = () => {
-    startTransition(true);
-    createBillingPortalSession()
-      .then(({ url }) => {
-        if (url) window.location.href = url;
-      })
-      .catch((err) => {
-        console.error("Portal error:", err);
-      })
-      .finally(() => startTransition(false));
+    startTransition(() => {
+      createBillingPortalSession()
+        .then(({ url }) => {
+          if (url) window.location.href = url;
+          else toast.error("No billing portal available for this account.");
+        })
+        .catch((err) => {
+          console.error("Portal error:", err);
+          toast.error("Failed to open billing portal.");
+        });
+    });
   };
 
   if (isLoading) {
@@ -311,7 +260,6 @@ export default function BillingPage() {
   }
 
   const userPlan = billingInfo?.plan || "free";
-  // Dynamically map current plan
   const plans = BASE_PLANS.map((p) => ({
     ...p,
     current:
@@ -321,24 +269,21 @@ export default function BillingPage() {
   }));
 
   const serverLimit = SERVER_PLANS[userPlan] || SERVER_PLANS.free;
+  const isUnlimited = serverLimit.apiCallsLimit === Infinity;
 
   const usageStats = [
     {
       label: "API Calls",
       used: billingInfo?.usage?.apiCalls || 0,
-      total:
-        serverLimit.apiCallsLimit === Infinity
-          ? 999999
-          : serverLimit.apiCallsLimit,
+      total: isUnlimited ? 0 : serverLimit.apiCallsLimit,
+      unlimited: isUnlimited,
       color: "#3b82f6",
     },
     {
       label: "Transactions Scanned",
       used: billingInfo?.usage?.transactionsScanned || 0,
-      total:
-        serverLimit.transactionsScannedLimit === Infinity
-          ? 999999
-          : serverLimit.transactionsScannedLimit,
+      total: isUnlimited ? 0 : serverLimit.transactionsScannedLimit,
+      unlimited: isUnlimited,
       color: "#a855f7",
     },
   ];
@@ -414,13 +359,16 @@ export default function BillingPage() {
                   <p className="font-bold text-white">{plan.name}</p>
                   <div className="flex items-baseline gap-1">
                     <span className={`text-2xl font-extrabold ${plan.color}`}>
-                      {annual && plan.price !== "$0" && plan.price !== "Custom"
-                        ? displayPrice
-                        : plan.price}
+                      {displayPrice}
                     </span>
                     {plan.period && (
                       <span className="text-xs text-gray-500">
                         {plan.period}
+                        {annual &&
+                          plan.price !== "$0" &&
+                          plan.price !== "Custom" && (
+                            <span className="ml-1 text-green-400">/ yr</span>
+                          )}
                       </span>
                     )}
                   </div>
@@ -470,7 +418,7 @@ export default function BillingPage() {
             <CardTitle className="text-sm">Current Usage</CardTitle>
           </div>
           <CardDescription>
-            Billing period: Feb 1 – Feb 28, 2026 · Resets in 2 days
+            Billing period: {formatBillingPeriod(billingInfo)}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -528,7 +476,11 @@ export default function BillingPage() {
               <Download className="h-4 w-4 text-gray-400" />
               <CardTitle className="text-sm">Billing History</CardTitle>
             </div>
-            <button className="text-xs text-gray-500 hover:text-white transition-colors">
+            <button
+              onClick={handleBillingPortal}
+              className="text-xs text-gray-500 hover:text-white transition-colors"
+              title="Open Stripe portal to download invoices"
+            >
               Download all
             </button>
           </div>
@@ -562,7 +514,7 @@ export default function BillingPage() {
                       Invoice {row.invoiceId || "Sub"}
                     </td>
                     <td className="py-3 font-mono text-gray-300">
-                      ${row.amount} {row.currency.toUpperCase()}
+                      ${row.amount} {row.currency?.toUpperCase()}
                     </td>
                     <td className="py-3">
                       <span
@@ -572,7 +524,11 @@ export default function BillingPage() {
                       </span>
                     </td>
                     <td className="py-3 text-right">
-                      <button className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
+                      <button
+                        onClick={handleBillingPortal}
+                        className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                        title="Download invoice from Stripe portal"
+                      >
                         <Download className="h-3.5 w-3.5" />
                       </button>
                     </td>

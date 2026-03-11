@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -19,7 +19,9 @@ import {
   Mail,
   Webhook,
   Smartphone,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 const DEFAULTS = {
   fraudThreshold: 0.75,
@@ -125,6 +127,23 @@ export default function PolicySettingsPage() {
   const [settings, setSettings] = useState({ ...DEFAULTS });
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load saved settings on mount
+  useEffect(() => {
+    fetch("/api/policy")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && Object.keys(data).length > 0) {
+          setSettings((prev) => ({ ...prev, ...data }));
+        }
+      })
+      .catch(() => {
+        // Fall back to defaults silently
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const update = (key, val) => {
     setSettings((s) => ({ ...s, [key]: val }));
@@ -132,17 +151,39 @@ export default function PolicySettingsPage() {
     setSaved(false);
   };
 
-  const handleSave = () => {
-    setSaved(true);
-    setDirty(false);
-    setTimeout(() => setSaved(false), 3000);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/policy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      setSaved(true);
+      setDirty(false);
+      toast.success("Policy settings saved successfully.");
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      toast.error("Failed to save settings. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleReset = () => {
     setSettings({ ...DEFAULTS });
-    setDirty(false);
+    setDirty(true);
     setSaved(false);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -167,7 +208,7 @@ export default function PolicySettingsPage() {
           </button>
           <button
             onClick={handleSave}
-            disabled={!dirty}
+            disabled={!dirty || isSaving}
             className={`flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-semibold transition-all ${
               saved
                 ? "bg-green-600/20 text-green-400 border border-green-500/30"
@@ -176,7 +217,11 @@ export default function PolicySettingsPage() {
                   : "bg-gray-800 text-gray-600 cursor-not-allowed"
             }`}
           >
-            {saved ? (
+            {isSaving ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
+              </>
+            ) : saved ? (
               <>
                 <CheckCircle2 className="h-3.5 w-3.5" /> Saved
               </>
@@ -189,10 +234,10 @@ export default function PolicySettingsPage() {
         </div>
       </div>
 
-      {dirty && (
+      {dirty && !isSaving && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          You have unsaved changes. Click "Save Changes" to apply.
+          You have unsaved changes. Click &quot;Save Changes&quot; to apply.
         </div>
       )}
 
@@ -403,7 +448,7 @@ export default function PolicySettingsPage() {
         </button>
         <button
           onClick={handleSave}
-          disabled={!dirty}
+          disabled={!dirty || isSaving}
           className={`flex items-center gap-1.5 text-xs px-5 py-2 rounded-lg font-semibold transition-all ${
             saved
               ? "bg-green-600/20 text-green-400 border border-green-500/30"
@@ -412,7 +457,11 @@ export default function PolicySettingsPage() {
                 : "bg-gray-800 text-gray-600 cursor-not-allowed"
           }`}
         >
-          {saved ? (
+          {isSaving ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
+            </>
+          ) : saved ? (
             <>
               <CheckCircle2 className="h-3.5 w-3.5" /> Saved Successfully
             </>

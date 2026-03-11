@@ -5,7 +5,7 @@ import { stripe } from "@/lib/stripe";
 import User from "@/models/User";
 import connectToDatabase from "@/lib/mongoose";
 
-export async function createCheckoutSession(planType) {
+export async function createCheckoutSession(planType, isAnnual = false) {
   const { userId: clerkId } = await auth();
   if (!clerkId) throw new Error("Unauthorized");
 
@@ -40,31 +40,37 @@ export async function createCheckoutSession(planType) {
     metadata: {
       clerkId,
       planType,
+      billingInterval: isAnnual ? "year" : "month",
     },
   };
 
+  // Pricing: Pro = $49/mo or $39/mo billed annually ($468/yr)
+  // Annual = 20% off → monthly_price * 12 * 0.8
+  const interval = isAnnual ? "year" : "month";
+  const PRO_MONTHLY_CENTS = 4900; // $49
+  const PRO_ANNUAL_CENTS = Math.round(PRO_MONTHLY_CENTS * 12 * 0.8); // $470.40 → 47040¢
+
   if (planType === "pro") {
-    // We should allow testing without breaking so we'll pass a dummy price if env var missing
-    const priceId = process.env.STRIPE_PRO_PRICE_ID || "price_dummy_pro_123";
-    try {
-      if (priceId !== "price_dummy_pro_123") {
-        sessionParams.line_items = [{ price: priceId, quantity: 1 }];
-      } else {
-        // Create dummy price on the fly for testing
-        sessionParams.line_items = [
-          {
-            price_data: {
-              currency: "usd",
-              product_data: { name: "Pro Plan" },
-              unit_amount: 4900,
-              recurring: { interval: "month" },
-            },
-            quantity: 1,
+    const priceId = isAnnual
+      ? process.env.STRIPE_PRO_ANNUAL_PRICE_ID || null
+      : process.env.STRIPE_PRO_PRICE_ID || null;
+
+    if (priceId) {
+      // Use pre-configured Stripe Price ID
+      sessionParams.line_items = [{ price: priceId, quantity: 1 }];
+    } else {
+      // Dynamically build the price for testing
+      sessionParams.line_items = [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: { name: isAnnual ? "Pro Plan (Annual)" : "Pro Plan" },
+            unit_amount: isAnnual ? PRO_ANNUAL_CENTS : PRO_MONTHLY_CENTS,
+            recurring: { interval },
           },
-        ];
-      }
-    } catch (e) {
-      console.error(e);
+          quantity: 1,
+        },
+      ];
     }
   } else if (planType === "custom") {
     sessionParams.line_items = [

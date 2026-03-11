@@ -3,6 +3,7 @@ import { useState } from "react";
 import { MOCK_ALERTS } from "@/lib/mockData";
 import { ShieldAlert, CheckCircle2, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner";
 
 const SEVERITY_STYLES = {
   Critical: "bg-red-500/20 text-red-400 border-red-800/50",
@@ -26,6 +27,7 @@ export default function AlertsPage() {
     setAlerts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status: "Reviewing" } : a)),
     );
+    toast.success("Alert marked as under review.");
   };
 
   const filtered =
