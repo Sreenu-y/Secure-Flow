@@ -1,0 +1,199 @@
+@startuml Secure-Flow-Architecture
+!theme cerulean
+skinparam backgroundColor #0d1117
+skinparam defaultFontColor #c9d1d9
+skinparam defaultFontName "Inter", sans-serif
+skinparam defaultFontSize 12
+skinparam ArrowColor #58a6ff
+skinparam ArrowThickness 1.5
+
+skinparam package {
+    BackgroundColor #161b22
+    BorderColor #30363d
+    FontColor #58a6ff
+    FontSize 14
+    FontStyle bold
+}
+
+skinparam class {
+    BackgroundColor #1c2128
+    BorderColor #30363d
+    HeaderBackgroundColor #21262d
+    FontColor #c9d1d9
+    AttributeFontColor #8b949e
+    StereotypeFontColor #7c3aed
+}
+
+skinparam note {
+    BackgroundColor #1c2128
+    BorderColor #30363d
+    FontColor #8b949e
+}
+
+title **Secure-Flow Fraud Detection System — UML Component Diagram**\n//Real-Time ML-Powered Financial Security Architecture//
+
+' ══════════════════════════════════════════════════════
+'  FRONTEND LAYER (Next.js)
+' ══════════════════════════════════════════════════════
+
+package "Frontend (Next.js + Tailwind)" as FE #161b22 {
+
+    class "Layout.js" as Layout <<Entry Point>> {
+        + ClerkProvider
+        + ThemeProvider
+        --
+        Main application wrapper
+    }
+
+    class "Dashboard/Alerts" as AlertsPage <<Page>> {
+        - alerts : Array
+        --
+        + markReviewed(id) : void
+        --
+        Displays risk-scored transactions
+    }
+
+    class "Dashboard/Billing" as BillingPage <<Page>> {
+        - plan : string
+        - usage : object
+        --
+        + handleUpgrade() : void
+        --
+        Integrates with Stripe
+    }
+
+    class "Status" as StatusPage <<Page>> {
+        Checks system uptime
+    }
+
+    package "Models (Mongoose)" as Models {
+        class "User.js" as User {
+            + clerkId : String
+            + email : String
+            + plan : Enum
+            + usage : Object
+        }
+        class "Prediction.js" as Prediction {
+            + clerkUserId : String
+            + transactionData : Mixed
+            + predictionResult : Object
+        }
+        class "ApiKey.js" as ApiKey {
+            + name : String
+            + hashedKey : String
+            + prefix : String
+        }
+    }
+
+    package "Library / Utils" as Lib {
+        class "mongoose.js" as DBConn {
+            + connect() : void
+        }
+        class "stripe.js" as StripeLib {
+            + stripePromise
+        }
+        class "billing.js" as BillingUtils {
+            + calculateUsage()
+        }
+    }
+
+    Layout --> AlertsPage
+    Layout --> BillingPage
+    Layout --> StatusPage
+    AlertsPage --> Prediction : displays
+    BillingPage --> User : manages
+    BillingPage --> StripeLib : uses
+    Models --> DBConn : via Mongoose
+}
+
+' ══════════════════════════════════════════════════════
+'  ML BACKEND LAYER (FastAPI)
+' ══════════════════════════════════════════════════════
+
+package "ML Service (FastAPI)" as BE #161b22 {
+
+    class "api.py" as APIApp <<FastAPI>> {
+        + app : FastAPI
+        --
+        **Endpoints:**
+        GET  / (Health)
+        POST /predict (ML Inference)
+    }
+
+    class "fraud_detection_pipeline.joblib" as Model <<Asset>> {
+        Trained Scikit-Learn Pipeline
+    }
+
+    class "Transaction" as TxnPydantic <<Schema>> {
+        + amount : float
+        + oldbalanceOrg : float
+        + newbalanceOrig : float
+        --
+        Pydantic Validation
+    }
+
+    class "PredictionResponse" as RespPydantic <<Schema>> {
+        + prediction : int
+        + fraud_probability : float
+        + verdict : string
+    }
+
+    APIApp --> Model : loads
+    APIApp ..> TxnPydantic : receives
+    APIApp ..> RespPydantic : returns
+}
+
+' ══════════════════════════════════════════════════════
+'  EXTERNAL SERVICES
+' ══════════════════════════════════════════════════════
+
+package "External Services" as EXT #161b22 {
+
+    class "Clerk" as Clerk <<Auth>> {
+        User Authentication
+        Identity Management
+    }
+
+    class "Stripe" as Stripe <<Payments>> {
+        Subscription Billing
+        Payment Processing
+    }
+
+    class "MongoDB Atlas" as Mongo <<Database>> {
+        User Data
+        Alert History
+        API Keys
+    }
+}
+
+' ══════════════════════════════════════════════════════
+'  RELATIONSHIPS
+' ══════════════════════════════════════════════════════
+
+FE -[#58a6ff]-> BE : REST API\n(POST /predict)
+FE -[#7c3aed]-> Clerk : Auth Guard
+FE -[#39d353]-> Stripe : Billing Logic
+DBConn -[#e6b422]-> Mongo : Mongoose Connection
+
+' ══════════════════════════════════════════════════════
+'  DATA FLOW NOTES
+' ══════════════════════════════════════════════════════
+
+note bottom of AlertsPage
+  **Fraud Detection Flow:**
+  1. Transaction data sent to Next.js API
+  2. Proxy request to FastAPI /predict
+  3. Model returns probability score
+  4. Result saved to MongoDB
+  5. Alert displayed in Dashboard if risk > threshold
+end note
+
+legend right
+  |= Layer |= Technology |
+  | Frontend | Next.js, Tailwind, Lucide |
+  | ML Service | FastAPI, Scikit-Learn, Joblib |
+  | Database | MongoDB Atlas, Mongoose |
+  | Payments | Stripe API |
+  | Auth | Clerk SDK |
+endlegend
+@enduml
