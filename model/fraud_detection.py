@@ -124,7 +124,7 @@ def prepare_data(df: pd.DataFrame, target: str = "isFraud"):
     X_train_res, y_train_res = rus.fit_resample(X_train, y_train)
 
     print(f"    ✓ Training (after resampling) : {len(X_train_res):,} "
-          f"({y_train_res.sum():,} fraud / {(y_train_res==0).sum():,} legit)")
+          f"({y_train_res.sum():,} fr   aud / {(y_train_res==0).sum():,} legit)")
     print(f"    ✓ Test set (original dist.)   : {len(X_test):,}\n")
 
     return X_train_res, X_test, y_train_res, y_test, feature_cols

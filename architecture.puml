@@ -1,33 +1,33 @@
 @startuml Secure-Flow-Architecture
-!theme cerulean
-skinparam backgroundColor #0d1117
-skinparam defaultFontColor #c9d1d9
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontColor #000000
 skinparam defaultFontName "Inter", sans-serif
 skinparam defaultFontSize 12
-skinparam ArrowColor #58a6ff
+skinparam ArrowColor #0056b3
 skinparam ArrowThickness 1.5
 
 skinparam package {
-    BackgroundColor #161b22
-    BorderColor #30363d
-    FontColor #58a6ff
+    BackgroundColor #F8F9FA
+    BorderColor #dee2e6
+    FontColor #0056b3
     FontSize 14
     FontStyle bold
 }
 
 skinparam class {
-    BackgroundColor #1c2128
-    BorderColor #30363d
-    HeaderBackgroundColor #21262d
-    FontColor #c9d1d9
-    AttributeFontColor #8b949e
-    StereotypeFontColor #7c3aed
+    BackgroundColor #FFFFFF
+    BorderColor #dee2e6
+    HeaderBackgroundColor #E9ECEF
+    FontColor #212529
+    AttributeFontColor #495057
+    StereotypeFontColor #6f42c1
 }
 
 skinparam note {
-    BackgroundColor #1c2128
-    BorderColor #30363d
-    FontColor #8b949e
+    BackgroundColor #FFF3CD
+    BorderColor #FFEEBA
+    FontColor #856404
 }
 
 title **Secure-Flow Fraud Detection System — UML Component Diagram**\n//Real-Time ML-Powered Financial Security Architecture//
@@ -36,7 +36,7 @@ title **Secure-Flow Fraud Detection System — UML Component Diagram**\n//Real-T
 '  FRONTEND LAYER (Next.js)
 ' ══════════════════════════════════════════════════════
 
-package "Frontend (Next.js + Tailwind)" as FE #161b22 {
+package "Frontend (Next.js + Tailwind)" as FE #F8F9FA {
 
     class "Layout.js" as Layout <<Entry Point>> {
         + ClerkProvider
@@ -110,7 +110,7 @@ package "Frontend (Next.js + Tailwind)" as FE #161b22 {
 '  ML BACKEND LAYER (FastAPI)
 ' ══════════════════════════════════════════════════════
 
-package "ML Service (FastAPI)" as BE #161b22 {
+package "ML Service (FastAPI)" as BE #F8F9FA {
 
     class "api.py" as APIApp <<FastAPI>> {
         + app : FastAPI
@@ -147,7 +147,7 @@ package "ML Service (FastAPI)" as BE #161b22 {
 '  EXTERNAL SERVICES
 ' ══════════════════════════════════════════════════════
 
-package "External Services" as EXT #161b22 {
+package "External Services" as EXT #F8F9FA {
 
     class "Clerk" as Clerk <<Auth>> {
         User Authentication
@@ -170,10 +170,10 @@ package "External Services" as EXT #161b22 {
 '  RELATIONSHIPS
 ' ══════════════════════════════════════════════════════
 
-FE -[#58a6ff]-> BE : REST API\n(POST /predict)
-FE -[#7c3aed]-> Clerk : Auth Guard
-FE -[#39d353]-> Stripe : Billing Logic
-DBConn -[#e6b422]-> Mongo : Mongoose Connection
+FE -[#0056b3]-> BE : REST API\n(POST /predict)
+FE -[#6f42c1]-> Clerk : Auth Guard
+FE -[#28a745]-> Stripe : Billing Logic
+DBConn -[#ffc107]-> Mongo : Mongoose Connection
 
 ' ══════════════════════════════════════════════════════
 '  DATA FLOW NOTES
